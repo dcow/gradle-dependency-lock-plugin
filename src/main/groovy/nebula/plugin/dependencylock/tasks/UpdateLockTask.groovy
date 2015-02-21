@@ -50,20 +50,20 @@ class UpdateLockTask extends GenerateLockTask {
     }
 
     private static loadLock(File lock) {
-        def lockKeyMap = [:].withDefault { [transitive: [] as Set, firstLevelTransitive: [] as Set, childrenVisited: false] }
-
+        def json
         try {
-            def json = new JsonSlurper().parseText(lock.text)
-            json.each { key, value ->
-                def (group, artifact) = key.tokenize(':')
-                lockKeyMap.put(new LockKey(group: group, artifact: artifact), value)
-            }
+            json = new JsonSlurper().parseText(lock.text)
         } catch (ex) {
             logger.debug('Unreadable json file: ' + lock.text)
             logger.error('JSON unreadable')
             throw new GradleException("${lock.name} is unreadable or invalid json, terminating run", ex)
         }
 
+        def lockKeyMap = [:].withDefault { [transitive: [] as Set, firstLevelTransitive: [] as Set, childrenVisited: false] }
+        json.each { key, value ->
+            def (group, artifact) = key.tokenize(':')
+            lockKeyMap.put(new LockKey(group: group, artifact: artifact), value)
+        }
         lockKeyMap
     }
 }
