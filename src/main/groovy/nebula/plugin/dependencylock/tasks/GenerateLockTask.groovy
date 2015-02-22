@@ -15,7 +15,6 @@
  */
 package nebula.plugin.dependencylock.tasks
 
-import groovy.transform.EqualsAndHashCode
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalDependency
@@ -185,16 +184,5 @@ class GenerateLockTask extends AbstractLockTask {
         lockLine << ' }'
 
         return lockLine.toString()
-    }
-
-    @EqualsAndHashCode
-    static class LockKey {
-        String group
-        String artifact
-
-        @Override
-        String toString() {
-            "${group}:${artifact}"
-        }
     }
 }
