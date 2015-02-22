@@ -1,6 +1,7 @@
 package nebula.plugin.dependencylock.tasks
 
 import groovy.json.JsonSlurper
+import org.gradle.api.artifacts.ResolvedDependency
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
 
@@ -42,10 +43,38 @@ class UpdateLockTask extends GenerateLockTask {
     }
 
     @Override
-    void writeLock(updatedDeps) {
+    void writeLock(updated) {
         File currentLock = new File(project.projectDir, dependenciesLock.name)
-        def lockedDeps = loadLock(currentLock)
-        super.writeLock(lockedDeps + (updatedDeps as Map))
+        def locked = loadLock(currentLock)
+        def pruned = pruneDeps(locked)
+        super.writeLock(pruned + (updated as Map))
+    }
+
+    private pruneDeps(locked) {
+        def keys = []
+        def visited = []
+
+        // Visit all nodes in a list of dependency trees once and record the lock key.
+        Closure addKeysFrom
+        addKeysFrom = { Set<ResolvedDependency> nodes ->
+            keys += nodes.collect { ResolvedDependency dep ->
+                visited += dep
+                new LockKey(group: dep.moduleGroup, artifact: dep.moduleName)
+            }
+            Set unvisited = nodes*.children.flatten() - visited
+            if (unvisited.size() > 0) {
+                addKeysFrom.trampoline(unvisited)
+            }  // bounce..
+        }.trampoline()
+
+        // Recursively generate keys for the entire dependency tree.
+        Set dependencies = project.configurations*.resolvedConfiguration.firstLevelModuleDependencies.flatten()
+        addKeysFrom(dependencies)
+
+        // Prune dependencies from the lock file that are not needed by dependencies in the current build script.
+        locked.findAll {
+            keys.contains(it.key)
+        }
     }
 
     private static loadLock(File lock) {
@@ -57,7 +86,7 @@ class UpdateLockTask extends GenerateLockTask {
             logger.error('JSON unreadable')
             throw new GradleException("${lock.name} is unreadable or invalid json, terminating run", ex)
         }
-
+        // Load the dependencies in the same form as they are read from the configurations.
         def lockKeyMap = [:].withDefault {
             [transitive: [] as Set, firstLevelTransitive: [] as Set, childrenVisited: false]
         }

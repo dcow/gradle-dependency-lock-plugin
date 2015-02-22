@@ -23,7 +23,7 @@ class UpdateLockTaskSpec extends ProjectSpec {
         task
     }
 
-    def 'default behavior is an additive update of the lock file'() {
+    def 'default behavior should only update relevant dependencies from the current lock file'() {
         project.dependencies {
             compile 'test.example:foo:2.0.0'
         }
@@ -44,7 +44,6 @@ class UpdateLockTaskSpec extends ProjectSpec {
         then:
         String lockText = '''\
             {
-              "test.example:baz": { "locked": "1.0.0", "requested": "1.0.0" },
               "test.example:foo": { "locked": "2.0.0", "requested": "2.0.0" }
             }
         '''.stripIndent()
